@@ -26,33 +26,61 @@ body {
   box-sizing: border-box;
 }
 
-/* Weather Card */
+/* Loading Icon */
+.loading-icon {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px auto;
+}
+
+.sunny-spinner {
+  font-size: 50px; /* Adjust size as needed */
+  color: white; /* Keep it visible on both backgrounds */
+  animation: spin 1s linear infinite;
+}
+
+/* Spinner Animation */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Weather Card Styling === */
 .weather-card {
   background: rgba(255, 255, 255, 0.1);
-  padding: 20px;
+  padding: 5px 25px;
   border-radius: 15px;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
   text-align: center;
   max-width: 600px; /* Increased width for desktops */
   min-width: 500px; /* Prevents it from being too narrow */
   width: 50%; /* Makes it responsive */
-  max-height: 80vh; /* Prevents overflow */
-  overflow: hidden;
+  max-height: 85vh; /* Increased height to prevent cutoff */
+  overflow-y: auto; /* Allows scrolling inside the card if needed */
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  animation: fadeInUp 1s ease-out; /* Smooth fade-in */
+  position: relative; /* Ensure the exit button stays positioned */
+  backdrop-filter: blur(10px);
 }
 
-/* Responsive Design */
+/* Mobile Optimization */
 @media (max-width: 768px) {
   .weather-card {
     max-width: 400px; /* Reduce width for mobile */
     width: 90%;
     min-width: unset;
+    max-height: 90vh; /* Increase height slightly for smaller screens */
   }
 }
 
-/* Search Bar */
+/* === Search Bar Styling === */
 .search-bar {
   width: 90%;
   max-width: 350px;
@@ -66,11 +94,27 @@ body {
   margin: 10px auto;
 }
 
-/* Temperature Display */
+/* Bounce Animation when Focused */
+@keyframes bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.search-bar:focus {
+  animation: bounce 0.3s ease-out;
+}
+
+/* === Temperature Display === */
 .current-temp {
   font-size: 64px;
   font-weight: bold;
-  margin: 10px 0;
+  margin: 7px 0;
 }
 
 /* High & Low Temperature */
@@ -87,7 +131,7 @@ body {
   margin-top: 5px;
 }
 
-/* Weather Details Grid */
+/* === Weather Details Grid === */
 .weather-details {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -95,27 +139,109 @@ body {
   margin-top: 10px;
 }
 
-/* Individual Detail Boxes */
+/* === Individual Detail Boxes === */
 .detail-box {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 10px;
   text-align: center;
   font-size: 14px;
   min-width: 100px; /* Prevents boxes from shrinking */
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+/* Staggered Animation for Each Box */
+.detail-box:nth-child(1) {
+  animation-delay: 0.2s;
+}
+.detail-box:nth-child(2) {
+  animation-delay: 0.4s;
+}
+.detail-box:nth-child(3) {
+  animation-delay: 0.6s;
+}
+.detail-box:nth-child(4) {
+  animation-delay: 0.8s;
 }
 
 /* Labels (Feels Like, Wind, etc.) */
 .detail-label {
-  font-size: 10px;
+  font-size: 15px;
   text-transform: uppercase;
   opacity: 0.8;
 }
 
-/* Temperature & Wind Speed Values */
+/* === Auto-Shrink Temperature & Wind Speed Values === */
 .detail-value {
-  font-size: 20px;
+  font-size: clamp(16px, 4vw, 28px);
   font-weight: bold;
+}
+
+.detail-value-humidity {
+  padding-top: 11.5px;
+  font-size: clamp(16px, 4vw, 28px);
+  font-weight: bold;
+}
+
+/* === Auto-Resize Condition Text === */
+.conditions-box .detail-value {
+  font-size: clamp(16px, 4vw, 25px); /* Automatically scales text */
+  max-width: 100%;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+}
+
+/* === Shrink the Weather Icon === */
+.weather-icon {
+  font-size: 10px; /* Adjust size */
+  margin-bottom: 3px; /* Reduce spacing between icon and text */
+}
+
+/* === Smooth Fade-In Animation === */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.exit-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: white;
+  cursor: pointer;
+  padding: 5px 10px;
+  border-radius: 50%;
+  transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+  opacity: 1;
+  z-index: 1000; /* Ensure it stays above all elements */
+  animation: none !important; /* ✅ Disable animations */
+  display: block !important; /* ✅ Force it to always show */
+}
+
+@media (max-width: 768px) {
+  .exit-button {
+    top: 8px; /* Slightly lower */
+    right: 10px; /* More space from edge */
+    font-size: 20px; /* Slightly smaller */
+  }
+}
+
+/* Prevent Exit Button from Being Hidden */
+.weather-card:hover .exit-button {
+  opacity: 1 !important;
+  display: block !important;
 }
 
 /* Hide Scrollbars */
