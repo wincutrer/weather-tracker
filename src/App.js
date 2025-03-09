@@ -9,6 +9,13 @@ import {
   WiDayHaze,
   WiThunderstorm,
 } from "react-icons/wi";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+
+// Extend Day.js with plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 function App() {
   const [weather, setWeather] = useState(null);
@@ -18,27 +25,26 @@ function App() {
   const [state, setState] = useState("");
   const searchInputRef = useRef(null);
 
+  // Focus input if no weather displayed
   useEffect(() => {
     if (!weather && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-  }, [weather]); // Run only when weather is null (input appears)
+  }, [weather]);
 
+  // Escape key => reset weather & city
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape" && weather) {
-        setWeather(null); // Clear the weather data
-        setCity(""); // Clear the search bar
+        setWeather(null);
+        setCity("");
       }
     };
-
     document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [weather]);
 
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [weather]); // Re-run only when `weather` changes
-
+  // Update background based on isDaytime
   useEffect(() => {
     if (weather) {
       document.body.style.background = weather.isDaytime
@@ -47,6 +53,7 @@ function App() {
     }
   }, [weather]);
 
+  // Condition mapping for icons + friendly text
   const conditionMapping = {
     "clear sky": { text: "Clear Skies", icon: <WiDaySunny size={45} /> },
     "few clouds": { text: "Partly Cloudy", icon: <WiCloudy size={45} /> },
@@ -66,76 +73,88 @@ function App() {
     drizzle: { text: "Drizzle", icon: <WiRain size={45} /> },
   };
 
+  // 1) Fetch city coordinates
   const fetchCoordinates = async () => {
     if (!city.trim()) {
       setError("Please enter a city name.");
       return null;
     }
-
     try {
-      const response = await fetch(
+      const res = await fetch(
         `https://api.openweathermap.org/geo/1.0/direct?q=${city},US&limit=1&appid=${process.env.REACT_APP_WEATHER_API_KEY}`
       );
-      const data = await response.json();
-
+      const data = await res.json();
       if (!data || data.length === 0) {
         throw new Error("City not found. Please try again.");
       }
-
       return {
         lat: data[0].lat,
         lon: data[0].lon,
         city: data[0].name,
         state: data[0].state || "Unknown",
       };
-    } catch (error) {
-      setError(error.message);
+    } catch (err) {
+      setError(err.message);
       return null;
     }
   };
 
+  // 2) Fetch weather data
   const fetchWeather = async () => {
-    if (weather) return; // Prevent fetching if weather is already displayed
     setLoading(true);
     setError(null);
 
     const location = await fetchCoordinates();
-    if (!location) return;
+    if (!location) {
+      setLoading(false);
+      return;
+    }
 
     try {
-      const response = await fetch(
+      const res = await fetch(
         `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${process.env.REACT_APP_WEATHER_API_KEY}&units=imperial`
       );
-      const data = await response.json();
+      const data = await res.json();
 
-      // Get last updated timestamp and timezone offset
-      const utcSeconds = data.dt;
-      const timezoneOffsetSeconds = data.timezone;
-      const localTime = new Date((utcSeconds + timezoneOffsetSeconds) * 1000);
+      // dt = UTC timestamp (in seconds)
+      // timezone = offset from UTC (in seconds)
+      const { dt, timezone } = data;
 
-      const formattedTime = localTime.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      // Convert dt to Day.js UTC object
+      const lastUpdatedUTC = dayjs.unix(dt).utc();
+      // Shift that UTC time by the offset => local city time
+      const cityLocalTime = lastUpdatedUTC.add(timezone, "second");
+      const formattedTime = cityLocalTime.format("h:mm A");
+
+      // Sunrise / Sunset -> convert to Day.js, shift by offset, compare
+      const sunriseLocal = dayjs
+        .unix(data.sys.sunrise)
+        .utc()
+        .add(timezone, "second");
+      const sunsetLocal = dayjs
+        .unix(data.sys.sunset)
+        .utc()
+        .add(timezone, "second");
 
       const isDaytime =
-        localTime >=
-          new Date((data.sys.sunrise + timezoneOffsetSeconds) * 1000) &&
-        localTime < new Date((data.sys.sunset + timezoneOffsetSeconds) * 1000);
+        cityLocalTime.isAfter(sunriseLocal) &&
+        cityLocalTime.isBefore(sunsetLocal);
 
-      // Get the raw condition from API and map it
+      // Determine condition icon + friendly text
       const rawCondition =
         data.weather[0]?.description.toLowerCase() || "Unknown";
-      const matchedCondition = conditionMapping[rawCondition] || {
+      const matched = conditionMapping[rawCondition] || {
         text: rawCondition
           .split(" ")
-          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
           .join(" "),
-        icon: <WiDaySunny size={50} />, // Default to sun icon
+        icon: <WiDaySunny size={50} />,
       };
 
+      // Round temperature & set final state
       setWeather({
         ...data,
+        name: location.city, // Could also use data.name
         main: {
           ...data.main,
           temp: Math.round(data.main.temp),
@@ -146,18 +165,19 @@ function App() {
         wind: { ...data.wind, speed: Math.round(data.wind.speed) },
         formattedTime,
         isDaytime,
-        formattedCondition: matchedCondition.text, // User-friendly condition text
-        weatherIcon: matchedCondition.icon, // Icon associated with the condition
+        formattedCondition: matched.text,
+        weatherIcon: matched.icon,
       });
 
       setState(location.state);
-    } catch (error) {
+    } catch (err) {
       setError("Error fetching weather data.");
     } finally {
       setLoading(false);
     }
   };
 
+  // JSX
   return (
     <div className="App">
       <h1>Weather Man</h1>
@@ -172,6 +192,7 @@ function App() {
           ref={searchInputRef}
         />
       )}
+
       {loading && (
         <div className="loading-icon">
           <WiDaySunny className="sunny-spinner" />
@@ -182,12 +203,11 @@ function App() {
 
       {weather && (
         <div className="weather-card">
-          {/* Exit Button */}
           <button
             className="exit-button"
             onClick={() => {
-              setWeather(null); // Clear the weather data
-              setCity(""); // Clear the search query
+              setWeather(null);
+              setCity("");
             }}
           >
             ✖
