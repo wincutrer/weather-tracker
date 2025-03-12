@@ -79,9 +79,8 @@ function App() {
 
     try {
       console.log("Fetching weather for:", city);
-      const res = await fetch(
-        `https://weather-tracker-neon.vercel.app/api/weather?city=${city}`
-      );
+      const res = await fetch(`/api/weather?city=${city}`);
+
       const data = await res.json();
 
       if (data.error) {
