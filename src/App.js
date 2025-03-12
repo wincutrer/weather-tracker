@@ -13,9 +13,28 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import timezone from "dayjs/plugin/timezone";
 
-// Extend Day.js with plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+// Condition mapping for icons + user friendly text
+const conditionMapping = {
+  "clear sky": { text: "Clear Skies", icon: <WiDaySunny size={45} /> },
+  "few clouds": { text: "Partly Cloudy", icon: <WiCloudy size={45} /> },
+  "scattered clouds": { text: "Partly Cloudy", icon: <WiCloudy size={45} /> },
+  "broken clouds": { text: "Mostly Cloudy", icon: <WiCloudy size={45} /> },
+  "overcast clouds": { text: "Cloudy", icon: <WiCloudy size={45} /> },
+  "light rain": { text: "Light Rain", icon: <WiRain size={45} /> },
+  "moderate rain": { text: "Rain", icon: <WiRain size={45} /> },
+  "heavy intensity rain": { text: "Heavy Rain", icon: <WiRain size={45} /> },
+  "light snow": { text: "Light Snow", icon: <WiSnow size={45} /> },
+  snow: { text: "Snow", icon: <WiSnow size={45} /> },
+  "heavy snow": { text: "Heavy Snow", icon: <WiSnow size={45} /> },
+  mist: { text: "Misty", icon: <WiFog size={45} /> },
+  fog: { text: "Foggy", icon: <WiFog size={45} /> },
+  haze: { text: "Hazy", icon: <WiDayHaze size={45} /> },
+  thunderstorm: { text: "Thunderstorms", icon: <WiThunderstorm size={45} /> },
+  drizzle: { text: "Drizzle", icon: <WiRain size={45} /> },
+};
 
 function App() {
   const [weather, setWeather] = useState(null);
@@ -25,14 +44,12 @@ function App() {
   const [state, setState] = useState("");
   const searchInputRef = useRef(null);
 
-  // Focus input if no weather displayed
   useEffect(() => {
     if (!weather && searchInputRef.current) {
       searchInputRef.current.focus();
     }
   }, [weather]);
 
-  // Escape key => reset weather & city
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Escape" && weather) {
@@ -44,140 +61,88 @@ function App() {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [weather]);
 
-  // Update background based on isDaytime
   useEffect(() => {
     if (weather) {
+      console.log("Weather state updated. isDaytime:", weather.isDaytime);
       document.body.style.background = weather.isDaytime
         ? "linear-gradient(to bottom, #f7f7f7, #7cb9f2 60%)"
         : "linear-gradient(to bottom, #333333, #0c1421)";
+    } else {
+      document.body.style.background =
+        "linear-gradient(to bottom, #f7f7f7, #7cb9f2 60%)"; // Default color
     }
   }, [weather]);
 
-  // Condition mapping for icons + friendly text
-  const conditionMapping = {
-    "clear sky": { text: "Clear Skies", icon: <WiDaySunny size={45} /> },
-    "few clouds": { text: "Partly Cloudy", icon: <WiCloudy size={45} /> },
-    "scattered clouds": { text: "Partly Cloudy", icon: <WiCloudy size={45} /> },
-    "broken clouds": { text: "Mostly Cloudy", icon: <WiCloudy size={45} /> },
-    "overcast clouds": { text: "Cloudy", icon: <WiCloudy size={45} /> },
-    "light rain": { text: "Light Rain", icon: <WiRain size={45} /> },
-    "moderate rain": { text: "Rain", icon: <WiRain size={45} /> },
-    "heavy intensity rain": { text: "Heavy Rain", icon: <WiRain size={45} /> },
-    "light snow": { text: "Light Snow", icon: <WiSnow size={45} /> },
-    snow: { text: "Snow", icon: <WiSnow size={45} /> },
-    "heavy snow": { text: "Heavy Snow", icon: <WiSnow size={45} /> },
-    mist: { text: "Misty", icon: <WiFog size={45} /> },
-    fog: { text: "Foggy", icon: <WiFog size={45} /> },
-    haze: { text: "Hazy", icon: <WiDayHaze size={45} /> },
-    thunderstorm: { text: "Thunderstorms", icon: <WiThunderstorm size={45} /> },
-    drizzle: { text: "Drizzle", icon: <WiRain size={45} /> },
-  };
-
-  // 1) Fetch city coordinates
-  const fetchCoordinates = async () => {
-    if (!city.trim()) {
-      setError("Please enter a city name.");
-      return null;
-    }
-    try {
-      const res = await fetch(
-        `https://api.openweathermap.org/geo/1.0/direct?q=${city},US&limit=1&appid=${process.env.REACT_APP_WEATHER_API_KEY}`
-      );
-      const data = await res.json();
-      if (!data || data.length === 0) {
-        throw new Error("City not found. Please try again.");
-      }
-      return {
-        lat: data[0].lat,
-        lon: data[0].lon,
-        city: data[0].name,
-        state: data[0].state || "Unknown",
-      };
-    } catch (err) {
-      setError(err.message);
-      return null;
-    }
-  };
-
-  // 2) Fetch weather data
   const fetchWeather = async () => {
     setLoading(true);
     setError(null);
 
-    const location = await fetchCoordinates();
-    if (!location) {
-      setLoading(false);
-      return;
-    }
-
     try {
-      const res = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?lat=${location.lat}&lon=${location.lon}&appid=${process.env.REACT_APP_WEATHER_API_KEY}&units=imperial`
-      );
+      console.log("Fetching weather for:", city);
+      const res = await fetch(`http://localhost:5050/api/weather?city=${city}`);
       const data = await res.json();
 
-      // dt = UTC timestamp (in seconds)
-      // timezone = offset from UTC (in seconds)
-      const { dt, timezone } = data;
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-      // Convert dt to Day.js UTC object
-      const lastUpdatedUTC = dayjs.unix(dt).utc();
-      // Shift that UTC time by the offset => local city time
-      const cityLocalTime = lastUpdatedUTC.add(timezone, "second");
-      const formattedTime = cityLocalTime.format("h:mm A");
+      const stateName = data.state || "Unknown";
 
-      // Sunrise / Sunset -> convert to Day.js, shift by offset, compare
-      const sunriseLocal = dayjs
+      // Convert timestamps using Day.js for accurate timezones
+      const cityLocalTime = dayjs.unix(data.dt).utcOffset(data.timezone / 60);
+      const sunriseTime = dayjs
         .unix(data.sys.sunrise)
-        .utc()
-        .add(timezone, "second");
-      const sunsetLocal = dayjs
+        .utcOffset(data.timezone / 60);
+      const sunsetTime = dayjs
         .unix(data.sys.sunset)
-        .utc()
-        .add(timezone, "second");
+        .utcOffset(data.timezone / 60);
+
+      console.log("City Local Time:", cityLocalTime.format("h:mm A"));
+      console.log("Sunrise Time:", sunriseTime.format("h:mm A"));
+      console.log("Sunset Time:", sunsetTime.format("h:mm A"));
 
       const isDaytime =
-        cityLocalTime.isAfter(sunriseLocal) &&
-        cityLocalTime.isBefore(sunsetLocal);
+        cityLocalTime.isAfter(sunriseTime) &&
+        cityLocalTime.isBefore(sunsetTime);
 
-      // Determine condition icon + friendly text
-      const rawCondition =
-        data.weather[0]?.description.toLowerCase() || "Unknown";
-      const matched = conditionMapping[rawCondition] || {
-        text: rawCondition
-          .split(" ")
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" "),
+      const lastUpdated = cityLocalTime.format("h:mm A");
+
+      const matchedCondition = conditionMapping[
+        data.weather[0]?.description
+      ] || {
+        text: "Unknown",
         icon: <WiDaySunny size={50} />,
       };
 
-      // Round temperature & set final state
-      setWeather({
+      const updatedWeather = {
         ...data,
-        name: location.city, // Could also use data.name
+        name: data.name,
         main: {
           ...data.main,
           temp: Math.round(data.main.temp),
           feels_like: Math.round(data.main.feels_like),
           temp_max: Math.round(data.main.temp_max),
           temp_min: Math.round(data.main.temp_min),
+          humidity: data.main.humidity,
         },
         wind: { ...data.wind, speed: Math.round(data.wind.speed) },
-        formattedTime,
+        formattedTime: lastUpdated,
         isDaytime,
-        formattedCondition: matched.text,
-        weatherIcon: matched.icon,
-      });
+        formattedCondition: matchedCondition.text,
+        weatherIcon: matchedCondition.icon,
+      };
 
-      setState(location.state);
+      console.log("Updated Weather Object:", updatedWeather);
+      setWeather(updatedWeather);
+      setState(stateName);
     } catch (err) {
-      setError("Error fetching weather data.");
+      console.error("Error in fetchWeather:", err);
+      setError(err.message || "Error fetching weather data.");
     } finally {
       setLoading(false);
     }
   };
 
-  // JSX
   return (
     <div className="App">
       <h1>Weather Man</h1>
@@ -208,6 +173,8 @@ function App() {
             onClick={() => {
               setWeather(null);
               setCity("");
+              document.body.style.background =
+                "linear-gradient(to bottom, #f7f7f7, #7cb9f2 60%)";
             }}
           >
             ✖
