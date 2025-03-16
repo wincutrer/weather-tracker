@@ -86,9 +86,12 @@ function App() {
       console.log("Fetching weather for:", city);
       const apiRoute = `${backendUrl}/api/weather?city=${city}`;
       const res = await fetch(apiRoute);
+
+      console.log("RESPONSE", res);
+
       const data = await res.json();
 
-      console.log("RESPONSE", data);
+      console.log("data", data);
 
       if (data.error) {
         throw new Error(data.error);
