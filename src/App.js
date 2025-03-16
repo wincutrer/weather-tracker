@@ -73,14 +73,18 @@ function App() {
     }
   }, [weather]);
 
+  const backendUrl =
+    process.env.NODE_ENV === "production"
+      ? "" // Leave empty for Vercel (backend on same domain)
+      : "http://localhost:5050"; // Use full URL locally
+
   const fetchWeather = async () => {
     setLoading(true);
     setError(null);
 
     try {
       console.log("Fetching weather for:", city);
-      const res = await fetch(`/api/weather?city=${city}`);
-
+      const res = await fetch(`${backendUrl}/api/weather?city=${city}`);
       const data = await res.json();
 
       if (data.error) {
